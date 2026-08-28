@@ -1,0 +1,28 @@
+# Build output
+target/
+*.class
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log
+# NOTE: .terraform.lock.hcl is deliberately NOT ignored - it pins provider
+# versions and belongs in git.
+
+# Credentials - never commit
+.env
+*.pem
+credentials
+.aws/
+
+# Local planning context - not part of the published project
+CLAUDE.md
+
+# macOS / IDE
+.DS_Store
+.idea/
+*.iml
+.vscode/
