@@ -90,8 +90,14 @@ is behind a Terraform variable that turns it off entirely.
 ## Infrastructure notes
 
 Terraform is split into two applies. `bootstrap/` creates the S3 bucket that holds remote
-state and is applied once with local state, which is committed — a bucket cannot be managed
-by state stored inside the bucket it creates. Everything else uses the remote backend.
+state, because a bucket cannot be managed by state stored inside the bucket it creates.
+Everything else lives in `infra/` and uses that bucket as its backend.
+
+Deploying your own copy means running `bootstrap/` once in your own AWS account, which
+produces a bucket with its own random suffix. That workspace's state is deliberately not
+committed: it describes one specific account's bucket, and is useless — actively
+misleading — to anyone deploying elsewhere. Terraform code is shared; Terraform state is
+not.
 
 The Lambda execution role is scoped to exactly what it needs: `ses:SendEmail` on one
 verified identity, DynamoDB `GetItem`/`PutItem` on one table, `ssm:GetParameter` on one
