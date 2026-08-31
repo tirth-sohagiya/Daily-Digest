@@ -1,6 +1,7 @@
 package com.tirth.digest;
 
 import com.tirth.digest.model.Section;
+import com.tirth.digest.sources.AlertSource;
 import com.tirth.digest.sources.Source;
 import com.tirth.digest.sources.WeatherSource;
 
@@ -14,7 +15,8 @@ public final class Main {
 
     public static void main(String[] args) {
         List<Source> sources = List.of(
-                new WeatherSource(SAN_JOSE_LATITUDE, SAN_JOSE_LONGITUDE, SAN_JOSE_TIMEZONE)
+                new WeatherSource(SAN_JOSE_LATITUDE, SAN_JOSE_LONGITUDE, SAN_JOSE_TIMEZONE),
+                new AlertSource(SAN_JOSE_LATITUDE, SAN_JOSE_LONGITUDE, SAN_JOSE_TIMEZONE)
         );
 
         for (Source source : sources) {

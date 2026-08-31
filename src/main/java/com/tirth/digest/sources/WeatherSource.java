@@ -20,9 +20,13 @@ public final class WeatherSource implements Source {
     private static final String ENDPOINT = "https://api.open-meteo.com/v1/forecast";
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final DateTimeFormatter HOUR = DateTimeFormatter.ofPattern("h a");
+    private static final DateTimeFormatter HEADING_DATE = DateTimeFormatter.ofPattern("EEE MMM d");
 
     private static final int RAIN_LIKELY_THRESHOLD_PERCENT = 50;
-    private static final int RAIN_WORTH_MENTIONING_PERCENT = 20;
+    private static final int HIGH_UV_INDEX = 8;
+    private static final int WINDY_MPH = 25;
+    private static final int HOT_FEELS_LIKE_F = 95;
+    private static final int COLD_FEELS_LIKE_F = 35;
 
     private final double latitude;
     private final double longitude;
@@ -64,6 +68,9 @@ public final class WeatherSource implements Source {
         int low = (int) Math.round(daily.path("temperature_2m_min").get(0).asDouble());
         int rainChance = daily.path("precipitation_probability_max").get(0).asInt();
         int weatherCode = daily.path("weather_code").get(0).asInt();
+        int feelsLike = (int) Math.round(daily.path("apparent_temperature_max").get(0).asDouble());
+        int uvIndex = (int) Math.round(daily.path("uv_index_max").get(0).asDouble());
+        int windSpeed = (int) Math.round(daily.path("wind_speed_10m_max").get(0).asDouble());
 
         List<String> lines = new ArrayList<>();
         lines.add("%d°F / %d°F, %s".formatted(low, high, describe(weatherCode)));
@@ -71,11 +78,33 @@ public final class WeatherSource implements Source {
         String rainStart = firstHourRainLikely(root);
         if (rainStart != null) {
             lines.add("Rain likely from %s (%d%% chance today)".formatted(rainStart, rainChance));
-        } else if (rainChance >= RAIN_WORTH_MENTIONING_PERCENT) {
-            lines.add("%d%% chance of rain today".formatted(rainChance));
+        } else {
+            lines.add("%d%% chance of rain".formatted(rainChance));
         }
 
-        return new Section(title(), lines);
+        if (feelsLike >= HOT_FEELS_LIKE_F) {
+            lines.add("Feels like %d°F — stay hydrated".formatted(feelsLike));
+        } else if (feelsLike <= COLD_FEELS_LIKE_F) {
+            lines.add("Feels like %d°F — bundle up".formatted(feelsLike));
+        }
+
+        if (uvIndex >= HIGH_UV_INDEX) {
+            lines.add("UV index %d — sunscreen".formatted(uvIndex));
+        }
+
+        if (windSpeed >= WINDY_MPH) {
+            lines.add("Windy — up to %d mph".formatted(windSpeed));
+        }
+
+        return new Section(headingFor(today()), lines);
+    }
+
+    private LocalDateTime today() {
+        return LocalDateTime.now(ZoneId.of(timezone));
+    }
+
+    private String headingFor(LocalDateTime moment) {
+        return title() + " — " + moment.format(HEADING_DATE);
     }
 
     private String buildUrl() {
@@ -83,10 +112,12 @@ public final class WeatherSource implements Source {
                 + "?latitude=" + latitude
                 + "&longitude=" + longitude
                 + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"
+                + ",apparent_temperature_max,uv_index_max,wind_speed_10m_max"
                 + "&hourly=precipitation_probability"
                 + "&timezone=" + timezone
                 + "&forecast_days=1"
-                + "&temperature_unit=fahrenheit";
+                + "&temperature_unit=fahrenheit"
+                + "&wind_speed_unit=mph";
     }
 
     private String firstHourRainLikely(JsonNode root) {
