@@ -45,6 +45,30 @@ public final class Store {
                 .build());
     }
 
+    public boolean hasSeen(String kind, String id) {
+        return DYNAMO.getItem(GetItemRequest.builder()
+                .tableName(tableName)
+                .key(seenKey(kind, id))
+                .build()).hasItem();
+    }
+
+    public void markSeen(String kind, String id, Duration lifetime) {
+        Map<String, AttributeValue> item = new HashMap<>(seenKey(kind, id));
+        item.put("ttl", AttributeValue.fromN(
+                Long.toString(Instant.now().plus(lifetime).getEpochSecond())));
+
+        DYNAMO.putItem(PutItemRequest.builder()
+                .tableName(tableName)
+                .item(item)
+                .build());
+    }
+
+    private static Map<String, AttributeValue> seenKey(String kind, String id) {
+        return Map.of(
+                "pk", AttributeValue.fromS(kind + "#" + id),
+                "sk", AttributeValue.fromS("SEEN"));
+    }
+
     private static Map<String, AttributeValue> keyFor(LocalDate date) {
         return Map.of(
                 "pk", AttributeValue.fromS("DIGEST#" + date),

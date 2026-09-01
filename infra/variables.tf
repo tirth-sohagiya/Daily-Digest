@@ -49,3 +49,27 @@ variable "cost_alarm_threshold_usd" {
   type        = number
   default     = 1
 }
+
+variable "deadlines" {
+  description = "Label to ISO-8601 date. Personal, so real values live in terraform.tfvars."
+  type        = map(string)
+  default     = {}
+}
+
+variable "opt_start_date" {
+  description = "OPT start date (ISO-8601). Personal, so the real value lives in terraform.tfvars."
+  type        = string
+  default     = ""
+}
+
+variable "employment_start_date" {
+  description = "Set once employed; freezes the unemployment tally. Empty means still unemployed."
+  type        = string
+  default     = ""
+}
+
+variable "opt_unemployment_days" {
+  description = "Aggregate unemployment days allowed. 90 on post-completion OPT, 150 with STEM OPT."
+  type        = number
+  default     = 90
+}

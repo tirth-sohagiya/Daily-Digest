@@ -2,6 +2,7 @@ package com.tirth.digest;
 
 import com.tirth.digest.model.Section;
 import com.tirth.digest.sources.AlertSource;
+import com.tirth.digest.sources.QuoteSource;
 import com.tirth.digest.sources.Source;
 import com.tirth.digest.sources.SpendSource;
 import com.tirth.digest.sources.WeatherSource;
@@ -18,12 +19,16 @@ public final class Main {
         List<Source> sources = List.of(
                 new WeatherSource(SAN_JOSE_LATITUDE, SAN_JOSE_LONGITUDE, SAN_JOSE_TIMEZONE),
                 new AlertSource(SAN_JOSE_LATITUDE, SAN_JOSE_LONGITUDE, SAN_JOSE_TIMEZONE),
-                new SpendSource()
+                new SpendSource(),
+                new QuoteSource(SAN_JOSE_TIMEZONE)
         );
 
         for (Source source : sources) {
             try {
                 Section section = source.fetch();
+                if (section.lines().isEmpty()) {
+                    continue;
+                }
                 System.out.println(section.title());
                 section.lines().forEach(line -> System.out.println("  " + line));
             } catch (Exception e) {

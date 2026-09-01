@@ -23,6 +23,10 @@ resource "aws_lambda_function" "digest" {
       SENDER_EMAIL    = var.sender_email
       RECIPIENT_EMAIL = var.recipient_email
       TABLE_NAME      = aws_dynamodb_table.digest.name
+      DEADLINES       = jsonencode(var.deadlines)
+      OPT_START_DATE  = var.opt_start_date
+      EMPLOYMENT_DATE = var.employment_start_date
+      OPT_DAYS        = var.opt_unemployment_days
     }
   }
 

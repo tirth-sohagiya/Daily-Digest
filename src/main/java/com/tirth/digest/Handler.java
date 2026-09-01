@@ -4,6 +4,11 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.tirth.digest.model.Section;
 import com.tirth.digest.sources.AlertSource;
+import com.tirth.digest.sources.DeadlineSource;
+import com.tirth.digest.sources.ImmigrationSource;
+import com.tirth.digest.sources.NewsSource;
+import com.tirth.digest.sources.OptStatusSource;
+import com.tirth.digest.sources.QuoteSource;
 import com.tirth.digest.sources.Source;
 import com.tirth.digest.sources.SpendSource;
 import com.tirth.digest.sources.WeatherSource;
@@ -32,7 +37,7 @@ public final class Handler implements RequestHandler<Object, String> {
             return "skipped";
         }
 
-        String digest = render(gatherSections(timezone));
+        String digest = render(gatherSections(timezone, store));
         context.getLogger().log(digest);
 
         Mailer mailer = new Mailer(
@@ -47,14 +52,23 @@ public final class Handler implements RequestHandler<Object, String> {
         return messageId;
     }
 
-    private static List<Section> gatherSections(String timezone) {
+    private static List<Section> gatherSections(String timezone, Store store) {
         double latitude = Double.parseDouble(environmentOrDefault("LATITUDE", DEFAULT_LATITUDE));
         double longitude = Double.parseDouble(environmentOrDefault("LONGITUDE", DEFAULT_LONGITUDE));
 
         List<Source> sources = List.of(
                 new WeatherSource(latitude, longitude, timezone),
                 new AlertSource(latitude, longitude, timezone),
-                new SpendSource()
+                new DeadlineSource(System.getenv("DEADLINES"), timezone),
+                new OptStatusSource(
+                        System.getenv("OPT_START_DATE"),
+                        System.getenv("EMPLOYMENT_DATE"),
+                        Long.parseLong(environmentOrDefault("OPT_DAYS", "90")),
+                        timezone),
+                new ImmigrationSource(store, timezone),
+                new NewsSource(store),
+                new SpendSource(),
+                new QuoteSource(timezone)
         );
 
         return sources.stream()
