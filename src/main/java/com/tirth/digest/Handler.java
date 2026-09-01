@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.tirth.digest.model.Section;
 import com.tirth.digest.sources.AlertSource;
 import com.tirth.digest.sources.Source;
+import com.tirth.digest.sources.SpendSource;
 import com.tirth.digest.sources.WeatherSource;
 
 import java.time.LocalDate;
@@ -23,15 +24,27 @@ public final class Handler implements RequestHandler<Object, String> {
     @Override
     public String handleRequest(Object event, Context context) {
         String timezone = environmentOrDefault("TIMEZONE", DEFAULT_TIMEZONE);
-        String digest = render(gatherSections(timezone));
+        LocalDate today = LocalDate.now(ZoneId.of(timezone));
+        Store store = new Store(requiredEnvironment("TABLE_NAME"));
 
+        if (store.alreadySentOn(today)) {
+            context.getLogger().log("Digest for " + today + " already sent; skipping.");
+            return "skipped";
+        }
+
+        String digest = render(gatherSections(timezone));
         context.getLogger().log(digest);
 
         Mailer mailer = new Mailer(
                 requiredEnvironment("SENDER_EMAIL"),
                 requiredEnvironment("RECIPIENT_EMAIL"));
 
-        return mailer.send(subjectFor(timezone), digest);
+        // The sentinel is written only after SES confirms: a premature write would turn a
+        // transient send failure into a silently skipped day.
+        String messageId = mailer.send(subjectFor(today), digest);
+        store.recordSentOn(today);
+
+        return messageId;
     }
 
     private static List<Section> gatherSections(String timezone) {
@@ -40,7 +53,8 @@ public final class Handler implements RequestHandler<Object, String> {
 
         List<Source> sources = List.of(
                 new WeatherSource(latitude, longitude, timezone),
-                new AlertSource(latitude, longitude, timezone)
+                new AlertSource(latitude, longitude, timezone),
+                new SpendSource()
         );
 
         return sources.stream()
@@ -58,8 +72,8 @@ public final class Handler implements RequestHandler<Object, String> {
         }
     }
 
-    private static String subjectFor(String timezone) {
-        return "Morning — " + LocalDate.now(ZoneId.of(timezone)).format(SUBJECT_DATE);
+    private static String subjectFor(LocalDate date) {
+        return "Morning — " + date.format(SUBJECT_DATE);
     }
 
     private static String render(List<Section> sections) {

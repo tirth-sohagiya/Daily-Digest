@@ -32,6 +32,15 @@ data "aws_iam_policy_document" "digest" {
     actions   = ["ses:SendEmail"]
     resources = [aws_sesv2_email_identity.sender.arn]
   }
+
+  statement {
+    sid     = "ReadEstimatedCharges"
+    actions = ["cloudwatch:GetMetricStatistics"]
+
+    # CloudWatch metric reads support no resource-level permissions; the wildcard is
+    # unavoidable rather than lazy, and this is the only one in the policy.
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "digest" {

@@ -37,3 +37,15 @@ variable "recipient_email" {
   description = "Where the digest is delivered. Must also be verified while SES is in sandbox mode."
   type        = string
 }
+
+variable "schedule_expression" {
+  description = "When the digest is sent, in AWS six-field cron syntax."
+  type        = string
+  default     = "cron(0 7 * * ? *)"
+}
+
+variable "cost_alarm_threshold_usd" {
+  description = "Estimated month-to-date charges that trigger the billing alarm."
+  type        = number
+  default     = 1
+}

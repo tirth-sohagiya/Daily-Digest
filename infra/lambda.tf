@@ -22,6 +22,7 @@ resource "aws_lambda_function" "digest" {
       TIMEZONE        = var.timezone
       SENDER_EMAIL    = var.sender_email
       RECIPIENT_EMAIL = var.recipient_email
+      TABLE_NAME      = aws_dynamodb_table.digest.name
     }
   }
 
