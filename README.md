@@ -4,8 +4,8 @@ A serverless morning email. Every day at 7:00 AM Pacific, a Java function on AWS
 gathers weather, immigration policy news, new-grad job postings, and a visa countdown,
 renders one email, sends it through SES, and shuts down.
 
-No server, no website, nothing to log into. Nineteen AWS resources, all provisioned with
-Terraform, running for **$0.00/month** — every API it touches is either free-tier or free
+No server, no website, nothing to log into. Eighteen AWS resources across two Terraform
+workspaces, running for **$0.00/month** — every API it touches is either free-tier or free
 outright.
 
 ```
