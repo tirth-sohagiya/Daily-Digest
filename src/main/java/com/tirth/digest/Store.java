@@ -63,6 +63,35 @@ public final class Store {
                 .build());
     }
 
+    /** Reads a single rolling value, e.g. the headlines shown over the last few days. */
+    public String readNote(String name) {
+        Map<String, AttributeValue> item = DYNAMO.getItem(GetItemRequest.builder()
+                .tableName(tableName)
+                .key(noteKey(name))
+                .build()).item();
+
+        AttributeValue value = item == null ? null : item.get("value");
+        return value == null ? "" : value.s();
+    }
+
+    public void writeNote(String name, String value, Duration lifetime) {
+        Map<String, AttributeValue> item = new HashMap<>(noteKey(name));
+        item.put("value", AttributeValue.fromS(value));
+        item.put("ttl", AttributeValue.fromN(
+                Long.toString(Instant.now().plus(lifetime).getEpochSecond())));
+
+        DYNAMO.putItem(PutItemRequest.builder()
+                .tableName(tableName)
+                .item(item)
+                .build());
+    }
+
+    private static Map<String, AttributeValue> noteKey(String name) {
+        return Map.of(
+                "pk", AttributeValue.fromS("NOTE#" + name),
+                "sk", AttributeValue.fromS("VALUE"));
+    }
+
     private static Map<String, AttributeValue> seenKey(String kind, String id) {
         return Map.of(
                 "pk", AttributeValue.fromS(kind + "#" + id),

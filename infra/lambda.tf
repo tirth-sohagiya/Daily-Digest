@@ -24,6 +24,8 @@ resource "aws_lambda_function" "digest" {
       RECIPIENT_EMAIL = var.recipient_email
       TABLE_NAME      = aws_dynamodb_table.digest.name
       DEADLINES       = jsonencode(var.deadlines)
+      JOB_CATEGORIES  = join("|", var.job_categories)
+      JOB_LOCATIONS   = join("|", var.job_locations)
       OPT_START_DATE  = var.opt_start_date
       EMPLOYMENT_DATE = var.employment_start_date
       OPT_DAYS        = var.opt_unemployment_days

@@ -73,3 +73,29 @@ variable "opt_unemployment_days" {
   type        = number
   default     = 90
 }
+
+variable "job_categories" {
+  description = "Simplify listing categories to include."
+  type        = list(string)
+  default     = ["Software", "Software Engineering", "AI/ML/Data"]
+}
+
+variable "job_locations" {
+  description = "Cities and remote variants to match against a posting's locations."
+  type        = list(string)
+  default = [
+    "San Jose", "SF", "San Francisco", "Santa Clara", "Sunnyvale", "Palo Alto",
+    "Mountain View", "Cupertino", "Menlo Park", "Fremont", "Oakland", "Redwood City",
+    "San Mateo", "Foster City", "Milpitas", "Berkeley", "Sacramento",
+    "San Diego", "LA", "Los Angeles", "Irvine", "Santa Monica", "Pasadena",
+    "Seattle", "Bellevue", "Redmond", "Portland",
+    "NYC", "New York", "Boston", "Philadelphia", "Pittsburgh",
+    "Austin", "Dallas", "Houston", "San Antonio",
+    "Chicago", "Denver", "Boulder", "Salt Lake City", "Phoenix",
+    "Atlanta", "Charlotte", "Raleigh", "Durham", "Nashville",
+    "Washington, DC", "Arlington", "McLean", "Reston",
+    "Minneapolis", "Columbus", "Cincinnati", "Indianapolis", "Ann Arbor",
+    "Miami", "Tampa", "Kansas City",
+    "Remote in USA", "Remote in US",
+  ]
+}

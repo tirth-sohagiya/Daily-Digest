@@ -6,6 +6,7 @@ import com.tirth.digest.model.Section;
 import com.tirth.digest.sources.AlertSource;
 import com.tirth.digest.sources.DeadlineSource;
 import com.tirth.digest.sources.ImmigrationSource;
+import com.tirth.digest.sources.JobSource;
 import com.tirth.digest.sources.NewsSource;
 import com.tirth.digest.sources.OptStatusSource;
 import com.tirth.digest.sources.QuoteSource;
@@ -65,6 +66,7 @@ public final class Handler implements RequestHandler<Object, String> {
                         System.getenv("EMPLOYMENT_DATE"),
                         Long.parseLong(environmentOrDefault("OPT_DAYS", "90")),
                         timezone),
+                new JobSource(store, splitOnPipe("JOB_CATEGORIES"), splitOnPipe("JOB_LOCATIONS")),
                 new ImmigrationSource(store, timezone),
                 new NewsSource(store),
                 new SpendSource(),
@@ -103,6 +105,12 @@ public final class Handler implements RequestHandler<Object, String> {
     private static String environmentOrDefault(String name, String fallback) {
         String value = System.getenv(name);
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    /** City names contain commas, so the pipe keeps the Terraform list intact through an env var. */
+    private static List<String> splitOnPipe(String name) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? List.of() : List.of(value.split("\\|"));
     }
 
     private static String requiredEnvironment(String name) {
