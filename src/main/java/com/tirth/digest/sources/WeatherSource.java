@@ -96,7 +96,7 @@ public final class WeatherSource implements Source {
             lines.add("Windy — up to %d mph".formatted(windSpeed));
         }
 
-        return new Section(headingFor(today()), lines);
+        return Section.of(headingFor(today()), lines);
     }
 
     private LocalDateTime today() {

@@ -3,6 +3,7 @@ package com.tirth.digest.sources;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tirth.digest.Store;
+import com.tirth.digest.model.Line;
 import com.tirth.digest.model.Section;
 
 import java.net.URI;
@@ -57,7 +58,7 @@ public final class ImmigrationSource implements Source {
 
     @Override
     public Section fetch() throws Exception {
-        List<String> lines = new ArrayList<>();
+        List<Line> lines = new ArrayList<>();
         Set<String> reported = new LinkedHashSet<>();
 
         for (String term : SEARCH_TERMS) {
@@ -72,8 +73,9 @@ public final class ImmigrationSource implements Source {
                     continue;
                 }
 
-                lines.add("%s · %s".formatted(document.path("type").asText("Document"), documentTitle));
-                lines.add("  " + document.path("html_url").asText());
+                lines.add(new Line(
+                        "%s · %s".formatted(document.path("type").asText("Document"), documentTitle),
+                        document.path("html_url").asText()));
                 store.markSeen("FEDREG", documentNumber, REMEMBER_FOR);
             }
         }

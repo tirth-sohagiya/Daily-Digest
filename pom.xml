@@ -56,6 +56,13 @@
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>cloudwatch</artifactId>
     </dependency>
+
+    <!-- The AWS SDK logs through SLF4J and warns on every invocation when no binding is present. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>1.7.36</version>
+    </dependency>
   </dependencies>
 
   <build>

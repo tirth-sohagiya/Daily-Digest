@@ -1,40 +1,58 @@
 # Daily Digest
 
 A serverless morning email. Every day at 7:00 AM Pacific, a Java function on AWS Lambda
-gathers weather, calendar events, and GitHub notifications, renders one email, sends it
-through SES, and shuts down.
+gathers weather, immigration policy news, new-grad job postings, and a visa countdown,
+renders one email, sends it through SES, and shuts down.
 
-No server, no website, nothing to log into. Provisioned entirely with Terraform, and runs
-for about **$0.05/month** — the only line item outside the free tier is the Cost Explorer
-API.
+No server, no website, nothing to log into. Nineteen AWS resources, all provisioned with
+Terraform, running for **$0.00/month** — every API it touches is either free-tier or free
+outright.
 
 ```
-Subject: Morning — Thu Aug 27
+WEATHER — THU SEP 3
+  57°F / 80°F, overcast
+  2% chance of rain
 
-WEATHER
-  62°F / 89°F, overcast
-  40% chance of rain today
+OPT STATUS
+  73 of 90 unemployment days remaining · through Nov 15
 
-TODAY
-  10:00  Standup
-  14:30  Dentist
+NEW GRAD JOBS — 16 new
+  H-1B · Applied Intuition — Forward Deployed Engineer New Grad — Sunnyvale, CA
+  Amazon — Applied Scientist, Global Risk Intelligence — Seattle, WA
+  … 14 more
 
-GITHUB
-  3 unread notifications
-  · review requested — acme/api-server #402
+IMMIGRATION NEWS
+  Forbes · DHS Adds Immigration Rule To Agenda That Stops H-1B Spouses From Working
+  Boundless Immigration · Proposal to End 60-Day Grace Period Clears Federal Review
+
+AWS SPEND
+  $0.00 month to date
 ```
 
-**Stack** — Java 21 on Lambda (arm64), Terraform, EventBridge Scheduler, SES v2, DynamoDB,
-SSM Parameter Store, CloudWatch, SNS.
+Sent as `multipart/alternative`, so headlines and job postings are clickable in HTML
+clients and still readable as plain text everywhere else.
+
+**Stack** — Java 21 on Lambda (arm64), Terraform, EventBridge Scheduler, DynamoDB,
+SES v2, CloudWatch Logs and Alarms, SNS, S3.
 
 ## Status
 
-The delivery pipeline is being built end to end with a single source before the rest are
-added, so that a failure has one plausible cause instead of six.
+Running unattended since 31 August 2026. Nine sources, each an implementation of a
+single-method `Source` interface:
 
-Working: the `Source`/`Section` abstraction and the weather source, verified against the
-live Open-Meteo API. In progress: Terraform state bootstrap, then Lambda, IAM, scheduler,
-and SES delivery. Planned: calendar, GitHub, and AWS spend sources.
+| Source | Data |
+|---|---|
+| `WeatherSource` | Open-Meteo forecast, UV/wind/feels-like advisories |
+| `AlertSource` | National Weather Service active alerts |
+| `OptStatusSource` | Visa unemployment countdown, freezes when employment starts |
+| `DeadlineSource` | Dated reminders from a Terraform map |
+| `JobSource` | New-grad postings, filtered by category and city, H-1B sponsors flagged |
+| `ImmigrationSource` | Federal Register rulemaking |
+| `NewsSource` | Immigration news, ranked and deduplicated across days |
+| `SpendSource` | Month-to-date AWS charges |
+| `QuoteSource` | A bundled quote, indexed by day of year |
+
+Adding a source means writing one class and appending one line to a list.
 
 ## Architecture
 
@@ -42,19 +60,17 @@ and SES delivery. Planned: calendar, GitHub, and AWS spend sources.
 EventBridge Scheduler (cron, America/Los_Angeles)
         │
         ▼
-   Lambda (Java 21, arm64)
+   Lambda (Java 21, arm64, 512 MB)
         │
-        ├──► Open-Meteo / Google iCal / GitHub API   (outbound HTTPS)
-        ├──► SSM Parameter Store    (secrets)
-        ├──► DynamoDB               (send idempotency)
-        └──► SES v2                 (deliver)
+        ├──► Open-Meteo · weather.gov · Federal Register     (outbound HTTPS)
+        ├──► Google News · Economic Times · GitHub raw
+        ├──► CloudWatch    (billing metric)
+        ├──► DynamoDB      (idempotency, dedupe, watermarks)
+        └──► SES v2        (deliver)
         │
         ▼
-  CloudWatch Logs ──► Alarm ──► SNS ──► phone
+  CloudWatch Logs ──► 3 alarms ──► SNS ──► email
 ```
-
-Each section of the email comes from a class implementing a single-method `Source`
-interface. Adding a source means writing one class and appending it to a list.
 
 ## Design decisions
 
@@ -68,10 +84,26 @@ projects, and avoiding it is deliberate.
 timezone and handles daylight saving itself; hand-computing an offset is the same bug
 written by hand.
 
+**A free metric instead of the paid API.** The AWS spend section originally called Cost
+Explorer's `GetCostAndUsage`, at $0.01 per request with no free tier — $0.30/month, which
+would have been roughly 87% of the project's entire bill. CloudWatch publishes
+`EstimatedCharges` for free and answers the same question, which is what took the running
+cost from $0.05 to $0.00.
+
+**Streaming a 13 MB feed inside a 512 MB function.** The job listings file holds ~19,000
+postings, and parsing it the usual way materializes all of them at once. Reading it one
+element at a time with a streaming parser holds peak memory to **213 MB**, measured from
+Lambda's own `Max Memory Used` — four megabytes above the same function without it.
+
+**Deduplicating stories, not strings.** The same news story is republished for days under
+different headlines. Matching exact text catches none of that, so headlines are reduced to
+sets of significant words and compared by overlap against the last forty shown. Job
+postings instead use a timestamp watermark, because a posting has one reliable date and
+appears once — different data, different memory.
+
 **A partial digest beats no digest.** Every source is invoked in isolation. If one throws
-or times out, the email still sends with the remaining sections and a one-line note where
-the broken one would have been — a failure that arrives in the inbox is a failure someone
-notices.
+or times out, the email still sends with the remaining sections — and a failure that
+arrives in the inbox is a failure someone notices.
 
 **The idempotency sentinel is written after SES succeeds, never before.** Lambda retries
 failed invocations, so the handler exits early if it finds a `DIGEST#<date>` marker in
@@ -79,19 +111,17 @@ DynamoDB. Writing that marker first would turn a transient SES error into a sile
 skipped day.
 
 **Alarms fire on absence, not just errors.** A cron job that stops running produces no
-errors — it produces nothing, which goes unnoticed for weeks. CloudWatch alarms cover both
-`Errors >= 1` and the lack of a successful invocation in 36 hours.
-
-**The AWS spend section runs Mondays only.** `GetCostAndUsage` costs $0.01 per request with
-no free tier, so daily calls would be $0.30/month — most of the project's total spend — to
-re-read a number that barely moves. Weekly gives the same signal for $0.04, and the section
-is behind a Terraform variable that turns it off entirely.
+errors — it produces nothing, which goes unnoticed for weeks. One alarm covers
+`Errors >= 1`; another covers the *lack* of a successful invocation in 36 hours, with
+`treat_missing_data = "breaching"`, since absence of data is precisely the condition it
+exists to catch.
 
 ## Infrastructure notes
 
 Terraform is split into two applies. `bootstrap/` creates the S3 bucket that holds remote
 state, because a bucket cannot be managed by state stored inside the bucket it creates.
-Everything else lives in `infra/` and uses that bucket as its backend.
+Everything else lives in `infra/` and uses that bucket as its backend, with S3-native
+locking rather than the DynamoDB lock table deprecated in Terraform 1.11.
 
 Deploying your own copy means running `bootstrap/` once in your own AWS account, which
 produces a bucket with its own random suffix. That workspace's state is deliberately not
@@ -100,14 +130,15 @@ misleading — to anyone deploying elsewhere. Terraform code is shared; Terrafor
 not.
 
 The Lambda execution role is scoped to exactly what it needs: `ses:SendEmail` on one
-verified identity, DynamoDB `GetItem`/`PutItem` on one table, `ssm:GetParameter` on one
-path prefix, and logs on its own group. The single wildcard is `ce:GetCostAndUsage` on
-`*`, which the Cost Explorer API requires because it supports no resource-level
-permissions.
+verified identity, DynamoDB `GetItem`/`PutItem` on one table, and logs on its own group.
+The single wildcard is `cloudwatch:GetMetricStatistics` on `*`, which the API requires
+because it supports no resource-level permissions — commented in place, since a reviewer
+will look for exactly that.
 
-Secrets — the Google Calendar iCal URL and the GitHub token — live in SSM as `SecureString`
-parameters and are read at runtime. Neither appears in Terraform state or in this
-repository.
+There are no secrets. Every feed the digest reads is public, so SSM Parameter Store was
+scoped out rather than added for its own sake. Personal configuration — email address,
+visa dates, job filters — lives in `terraform.tfvars`, which is gitignored;
+`example.tfvars` documents what to supply.
 
 ## Running locally
 
@@ -117,5 +148,7 @@ Requires JDK 21 or newer and Maven 3.9+.
 mvn -q compile exec:java
 ```
 
-Fetches from the live source APIs and prints the digest to the terminal. Touches no AWS
-services, so it needs no credentials.
+Prints the digest to the terminal, sending no email. It runs the sources that need no
+persistence — weather, alerts, AWS spend, and the quote. Jobs, news, and Federal Register
+items depend on DynamoDB for deduplication, so those are exercised by deploying and
+invoking the function.

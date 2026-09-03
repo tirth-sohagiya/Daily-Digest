@@ -35,7 +35,7 @@ public final class OptStatusSource implements Source {
     @Override
     public Section fetch() {
         if (optStartDate == null || optStartDate.isBlank()) {
-            return new Section(title(), List.of());
+            return Section.of(title(), List.of());
         }
 
         LocalDate today = LocalDate.now(ZoneId.of(timezone));
@@ -51,7 +51,7 @@ public final class OptStatusSource implements Source {
         if (employed()) {
             lines.add("%d of %d unemployment days used · clock stopped %s"
                     .formatted(used, allowanceDays, LocalDate.parse(employmentStartDate).format(RUNS_OUT)));
-            return new Section(title(), lines);
+            return Section.of(title(), lines);
         }
 
         if (remaining <= 0) {
@@ -64,7 +64,7 @@ public final class OptStatusSource implements Source {
                 lines.add("Under %d days left — confirm your options with your DSO".formatted(WARN_BELOW_DAYS));
             }
         }
-        return new Section(title(), lines);
+        return Section.of(title(), lines);
     }
 
     private boolean employed() {

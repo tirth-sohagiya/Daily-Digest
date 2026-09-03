@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tirth.digest.Store;
+import com.tirth.digest.model.Line;
 import com.tirth.digest.model.Section;
 
 import java.io.InputStream;
@@ -93,10 +94,10 @@ public final class JobSource implements Source {
         postings.sort(Comparator.comparing(Posting::sponsorTagged).reversed()
                 .thenComparing(Comparator.comparingLong(Posting::postedAt).reversed()));
 
-        List<String> lines = new ArrayList<>();
+        List<Line> lines = new ArrayList<>();
         postings.stream().limit(MAX_SHOWN).map(Posting::render).forEach(lines::add);
         if (postings.size() > MAX_SHOWN) {
-            lines.add("… %d more".formatted(postings.size() - MAX_SHOWN));
+            lines.add(Line.of("… %d more".formatted(postings.size() - MAX_SHOWN)));
         }
 
         return new Section("%s — %d new".formatted(title(), postings.size()), lines);
@@ -164,7 +165,7 @@ public final class JobSource implements Source {
                 .trim();
     }
 
-    private record Posting(String company, String title, String location, long postedAt,
+    private record Posting(String company, String title, String location, String url, long postedAt,
                            boolean sponsorTagged) {
 
         static Posting from(JsonNode entry, Set<String> sponsors) {
@@ -174,15 +175,17 @@ public final class JobSource implements Source {
                     company,
                     entry.path("title").asText("Role"),
                     locations.isEmpty() ? "" : locations.get(0).asText(),
+                    entry.path("url").asText(""),
                     entry.path("date_posted").asLong(),
                     sponsors.contains(normalize(company)));
         }
 
-        String render() {
+        Line render() {
             String marker = sponsorTagged ? "H-1B · " : "";
-            return location.isBlank()
+            String text = location.isBlank()
                     ? "%s%s — %s".formatted(marker, company, title)
                     : "%s%s — %s — %s".formatted(marker, company, title, location);
+            return new Line(text, url);
         }
     }
 }

@@ -46,7 +46,7 @@ public final class SpendSource implements Source {
         // Billing data lags by hours and is absent entirely until billing alerts are enabled;
         // an empty section is dropped by the caller rather than reported as a failure.
         return latest
-                .map(point -> new Section(title(), List.of("$%.2f month to date".formatted(point.maximum()))))
-                .orElseGet(() -> new Section(title(), List.of()));
+                .map(point -> Section.of(title(), List.of("$%.2f month to date".formatted(point.maximum()))))
+                .orElseGet(() -> Section.of(title(), List.of()));
     }
 }

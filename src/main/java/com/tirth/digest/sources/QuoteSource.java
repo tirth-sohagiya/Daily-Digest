@@ -29,13 +29,13 @@ public final class QuoteSource implements Source {
     @Override
     public Section fetch() {
         if (QUOTES.isEmpty()) {
-            return new Section(title(), List.of());
+            return Section.of(title(), List.of());
         }
 
         int dayOfYear = LocalDate.now(ZoneId.of(timezone)).getDayOfYear();
         String[] parts = QUOTES.get(dayOfYear % QUOTES.size()).split("\\|", 2);
 
-        return new Section(title(), parts.length == 2
+        return Section.of(title(), parts.length == 2
                 ? List.of('"' + parts[0] + '"', "— " + parts[1])
                 : List.of(parts[0]));
     }

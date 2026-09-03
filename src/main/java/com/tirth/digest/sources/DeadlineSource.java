@@ -31,7 +31,7 @@ public final class DeadlineSource implements Source {
     @Override
     public Section fetch() throws Exception {
         if (deadlinesJson == null || deadlinesJson.isBlank()) {
-            return new Section(title(), List.of());
+            return Section.of(title(), List.of());
         }
 
         LocalDate today = LocalDate.now(ZoneId.of(timezone));
@@ -44,7 +44,7 @@ public final class DeadlineSource implements Source {
                 .map(entry -> describe(entry.getKey(), ChronoUnit.DAYS.between(today, entry.getValue())))
                 .toList());
 
-        return new Section(title(), lines);
+        return Section.of(title(), lines);
     }
 
     private static String describe(String label, long daysAway) {

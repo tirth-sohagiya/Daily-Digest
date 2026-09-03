@@ -21,15 +21,18 @@ public final class Mailer {
         this.recipientAddress = recipientAddress;
     }
 
-    public String send(String subject, String plainTextBody) {
+    public String send(String subject, String plainTextBody, String htmlBody) {
         SendEmailRequest request = SendEmailRequest.builder()
                 .fromEmailAddress(senderAddress)
                 .destination(Destination.builder().toAddresses(recipientAddress).build())
                 .content(EmailContent.builder()
                         .simple(Message.builder()
                                 .subject(Content.builder().data(subject).build())
+                                // Supplying both parts makes SES send multipart/alternative, so a
+                                // client that cannot render HTML still receives readable text.
                                 .body(Body.builder()
                                         .text(Content.builder().data(plainTextBody).build())
+                                        .html(Content.builder().data(htmlBody).build())
                                         .build())
                                 .build())
                         .build())

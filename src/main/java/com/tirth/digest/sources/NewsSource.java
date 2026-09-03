@@ -1,6 +1,7 @@
 package com.tirth.digest.sources;
 
 import com.tirth.digest.Store;
+import com.tirth.digest.model.Line;
 import com.tirth.digest.model.Section;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -80,11 +81,13 @@ public final class NewsSource implements Source {
                     // like Trump's and Holders' are not mistaken for quoted speech.
                     + "|(^|\\s)['\u2018][^'\u2019]{6,}['\u2019](\\s|:|,|\\.|$)"
                     + "|\\b\\d{1,2}-year-old\\b"
-                    + "|\\b(says|said|explains|shares|reveals|slams|blasts|viral|netizens"
-                    + "|reddit|redditor|sparks|opinion)\\b",
+                    + "|\\b(says|said|claims?|claimed|alleges|alleged|explains|shares|reveals"
+                    + "|slams|blasts|viral|netizens|reddit|redditor|sparks|opinion)\\b",
             Pattern.CASE_INSENSITIVE);
 
     private static final int TABLOID_PENALTY = 2;
+
+    private static final int TRUNCATION_SUSPECTED_AT = 95;
 
     private static final int MAX_ITEMS = 4;
     private static final int MINIMUM_SCORE = 0;
@@ -123,7 +126,7 @@ public final class NewsSource implements Source {
         List<Set<String>> acceptedWords = new ArrayList<>(alreadyTold);
         Set<String> signaturesThisRun = new HashSet<>();
         List<String> chosen = new ArrayList<>();
-        List<String> lines = new ArrayList<>();
+        List<Line> lines = new ArrayList<>();
 
         for (Headline headline : candidates) {
             if (lines.size() >= MAX_ITEMS) {
@@ -143,9 +146,10 @@ public final class NewsSource implements Source {
             acceptedWords.add(words);
             chosen.add(headline.headline());
 
-            lines.add(headline.publisher().isBlank()
+            lines.add(new Line(headline.publisher().isBlank()
                     ? headline.headline()
-                    : "%s · %s".formatted(headline.publisher(), headline.headline()));
+                    : "%s · %s".formatted(headline.publisher(), headline.headline()),
+                    headline.link()));
             store.markSeen("NEWS", headline.signature(), REMEMBER_FOR);
         }
 
@@ -242,9 +246,14 @@ public final class NewsSource implements Source {
                     rankOf(publisher), policySignalCount(headline));
         }
 
-        /** Google News truncates long titles mid-word, leaving trailing fragments like "behind q". */
+        /**
+         * Google News truncates titles near 103 characters, leaving fragments like "behind q" or
+         * "CEO cla". Length is the reliable signal: a short final word is only suspicious on a
+         * headline long enough to have been cut, since plenty of intact headlines end in "fee".
+         */
         private static String trimToWholeWord(String headline) {
-            if (!headline.matches(".*\\s+\\S{1,2}$")) {
+            if (headline.length() < TRUNCATION_SUSPECTED_AT
+                    || !headline.matches(".*\\s+\\S{1,4}$")) {
                 return headline;
             }
             return headline.substring(0, headline.lastIndexOf(' ')).replaceAll("[,;:]$", "") + "…";

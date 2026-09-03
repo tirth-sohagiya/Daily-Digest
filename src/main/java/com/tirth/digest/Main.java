@@ -30,7 +30,7 @@ public final class Main {
                     continue;
                 }
                 System.out.println(section.title());
-                section.lines().forEach(line -> System.out.println("  " + line));
+                section.lines().forEach(line -> System.out.println("  " + line.text()));
             } catch (Exception e) {
                 // A partial digest beats no digest: one dead source must never stop the rest from rendering.
                 System.out.println(source.title());

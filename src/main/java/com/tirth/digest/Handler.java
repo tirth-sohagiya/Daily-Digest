@@ -38,8 +38,9 @@ public final class Handler implements RequestHandler<Object, String> {
             return "skipped";
         }
 
-        String digest = render(gatherSections(timezone, store));
-        context.getLogger().log(digest);
+        List<Section> sections = gatherSections(timezone, store);
+        String plainText = Renderer.plainText(sections);
+        context.getLogger().log(plainText);
 
         Mailer mailer = new Mailer(
                 requiredEnvironment("SENDER_EMAIL"),
@@ -47,7 +48,7 @@ public final class Handler implements RequestHandler<Object, String> {
 
         // The sentinel is written only after SES confirms: a premature write would turn a
         // transient send failure into a silently skipped day.
-        String messageId = mailer.send(subjectFor(today), digest);
+        String messageId = mailer.send(subjectFor(today), plainText, Renderer.html(sections));
         store.recordSentOn(today);
 
         return messageId;
@@ -84,22 +85,12 @@ public final class Handler implements RequestHandler<Object, String> {
             return source.fetch();
         } catch (Exception e) {
             // A partial digest beats no digest: one dead source must never stop the rest from rendering.
-            return new Section(source.title(), List.of("(unavailable: " + e.getMessage() + ")"));
+            return Section.of(source.title(), List.of("(unavailable: " + e.getMessage() + ")"));
         }
     }
 
     private static String subjectFor(LocalDate date) {
         return "Morning — " + date.format(SUBJECT_DATE);
-    }
-
-    private static String render(List<Section> sections) {
-        StringBuilder out = new StringBuilder();
-        for (Section section : sections) {
-            out.append(section.title()).append('\n');
-            section.lines().forEach(line -> out.append("  ").append(line).append('\n'));
-            out.append('\n');
-        }
-        return out.toString();
     }
 
     private static String environmentOrDefault(String name, String fallback) {

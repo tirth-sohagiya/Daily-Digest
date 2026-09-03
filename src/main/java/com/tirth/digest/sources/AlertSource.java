@@ -63,7 +63,7 @@ public final class AlertSource implements Source {
             lines.add(describe(feature.path("properties")));
         }
 
-        return new Section(title(), lines);
+        return Section.of(title(), lines);
     }
 
     private String buildUrl() {
